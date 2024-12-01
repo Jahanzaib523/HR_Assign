@@ -6,7 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 from selenium.webdriver.common.action_chains import ActionChains
 import time
-
+         
 # Function to handle the modal/overlay
 def handle_leave_assignment_overlay(driver, confirm=True):
     try:
@@ -240,6 +240,8 @@ if __name__ == "__main__":
                 assign_button.click()
             except ElementClickInterceptedException:
                 print("Element click intercepted. Handling overlay...")
+                 # Handle the overlay first
+                handle_leave_assignment_overlay(driver, confirm=True)
 
             # Handle the overlay or dialog if it exists
             overlay = driver.find_elements(By.XPATH, "//div[contains(@class, 'oxd-dialog-container-default')]")
@@ -262,8 +264,11 @@ if __name__ == "__main__":
 
         except TimeoutException:
             print("Error: Submit button or success message not found.")
+             # Handle the overlay first
+            handle_leave_assignment_overlay(driver, confirm=True)
+            
 
     finally:
-        # Close the browser
-        logout(driver)
-        driver.quit()
+    #     # Close the browser
+    #     logout(driver)
+         driver.quit()
