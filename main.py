@@ -3,10 +3,37 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 
+# Function to handle the modal/overlay
+def handle_leave_assignment_overlay(driver, confirm=True):
+    try:
+        # Wait for the overlay to appear
+        overlay = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'oxd-dialog-sheet')]"))
+        )
+        print("Overlay detected.")
+        
+        if confirm:
+            # Click the OK button
+            ok_button = overlay.find_element(By.XPATH, ".//button[contains(@class, 'oxd-button--secondary')]")
+            ok_button.click()
+            print("Clicked OK to confirm leave assignment.")
+        else:
+            # Click the Cancel button
+            cancel_button = overlay.find_element(By.XPATH, ".//button[contains(@class, 'oxd-button--ghost')]")
+            cancel_button.click()
+            print("Clicked Cancel to decline leave assignment.")
+        
+        # Wait for the overlay to disappear
+        WebDriverWait(driver, 5).until(
+            EC.invisibility_of_element_located((By.XPATH, "//div[contains(@class, 'oxd-dialog-sheet')]"))
+        )
+        print("Overlay handled successfully.")
+    except Exception as e:
+        print(f"Error handling the overlay: {e}")
 
 def search_and_select_from_suggestions(driver, search_text, fallback_text):
     """
@@ -104,6 +131,7 @@ if __name__ == "__main__":
             assign_leave_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, "//button[@title='Assign Leave']"))
             )
+
             assign_leave_button.click()
             print("Assign Leave button clicked.")
         except TimeoutException:
@@ -117,8 +145,8 @@ if __name__ == "__main__":
             employee_name_field = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Type for hints...']"))
             )
-            employee_name_field.send_keys("James Butler")  # Enter the name
-            print("Entered 'James Butler' in the input field.")
+            employee_name_field.send_keys("Joseph  Delgado")  # Enter the name
+            print("Entered 'Joseph  Delgado' in the input field.")
 
             # Wait for suggestions to load
             WebDriverWait(driver, 10).until(
@@ -131,7 +159,7 @@ if __name__ == "__main__":
             # Use keyboard to navigate and select the suggestion
             employee_name_field.send_keys(Keys.ARROW_DOWN)  # Navigate to the first suggestion
             employee_name_field.send_keys(Keys.ENTER)       # Select the suggestion
-            print("Successfully selected 'James Butler' from suggestions.")
+            print("Successfully selected 'Joseph  Delgado' from suggestions.")
         except (TimeoutException, NoSuchElementException) as e:
             print(f"Error: {e}")
 
@@ -195,21 +223,45 @@ if __name__ == "__main__":
 
         # Submit the form
         try:
+            # Wait for the button to be clickable
             assign_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
             )
-            assign_button.click()
+    
+            # Scroll to the button to ensure visibility
+            driver.execute_script("arguments[0].scrollIntoView(true);", assign_button)
+            time.sleep(0.5)  # Add a short delay for smooth scrolling
+    
+             # Handle the overlay first
+            handle_leave_assignment_overlay(driver, confirm=True)
+            
+            # Attempt to click the button
+            try:
+                assign_button.click()
+            except ElementClickInterceptedException:
+                print("Element click intercepted. Handling overlay...")
 
-            # Wait for success message
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located(
-                    (By.XPATH, "//div[contains(@class, 'oxd-toast--success')]")
+            # Handle the overlay or dialog if it exists
+            overlay = driver.find_elements(By.XPATH, "//div[contains(@class, 'oxd-dialog-container-default')]")
+            if overlay:
+                print("Closing overlay...")
+                close_button = overlay[0].find_element(By.XPATH, ".//button[contains(@class, 'close-button-class')]")  # Adjust selector
+                close_button.click()
+                time.sleep(1)  # Allow time for the overlay to disappear
+            
+                # Retry clicking the button
+                assign_button.click()
+    
+                # Wait for success message
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located(
+                        (By.XPATH, "//div[contains(@class, 'oxd-toast--success')]")
+                    )
                 )
-            )
-            print("Leave assigned successfully.")
+                print("Leave assigned successfully.")
+
         except TimeoutException:
-            print("Error submitting the form.")
-            logout(driver)
+            print("Error: Submit button or success message not found.")
 
     finally:
         # Close the browser
